@@ -39,4 +39,4 @@ Traditional real estate websites suffer from high bounce rates and "anonymous tr
 
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/yourusername/Autonomous-Real-Estate-AI.git](https://github.com/yourusername/Autonomous-Real-Estate-AI.git)
+   git clone [https://github.com/CHAPLINE055/samtech-land-agency-legacy.git](https://github.com/CHAPLINE055/samtech-land-agency-legacy.git)
