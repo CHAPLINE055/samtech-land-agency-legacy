@@ -1,0 +1,309 @@
+/* Admin Responsive Utilities */
+
+/* Base adjustments */
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+/* Ensure main content has proper padding to account for fixed header */
+/* Header is h-14 (3.5rem/56px) on mobile, h-16 (4rem/64px) on desktop */
+/* Maintenance mode banner adds ~2.5rem (40px) if present */
+#mainContent {
+  padding-top: 6rem !important; /* 4rem header + 2rem buffer (accounts for maintenance banner) */
+  transition: margin-left 0.3s ease, padding 0.3s ease;
+}
+
+@media (min-width: 769px) {
+  /* Desktop: header is 4rem, add buffer for maintenance banner */
+  #mainContent {
+    padding-top: 6.5rem !important;
+  }
+}
+
+@media (max-width: 768px) {
+  #mainContent {
+    margin-left: 0 !important;
+    padding: 1rem !important;
+    padding-top: 5.5rem !important; /* 3.5rem header + 2rem buffer for maintenance banner */
+    transition: margin-left 0.3s ease, padding 0.3s ease;
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  /* When sidebar is open, content flexes to make room */
+  html.sidebar-collapsed #mainContent {
+    margin-left: 16rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    padding-top: 5.5rem !important; /* Keep same top padding */
+    width: calc(100% - 16rem);
+  }
+}
+
+/* Header adjustments for mobile */
+@media (max-width: 640px) {
+  header {
+    height: 3.5rem !important;
+  }
+  
+  /* Reduce header padding on very small screens */
+  header > div {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+}
+
+/* Off-canvas sidebar on mobile */
+@media (max-width: 768px) {
+  #adminSidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    top: 3.5rem !important; /* Match header height */
+    z-index: 40;
+  }
+  html.sidebar-collapsed #adminSidebar {
+    transform: translateX(0);
+  }
+  
+  /* Optimize content layout when sidebar is open */
+  html.sidebar-collapsed #stats-section {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+  
+  html.sidebar-collapsed .grid.lg\\:grid-cols-3,
+  html.sidebar-collapsed .grid.lg\\:grid-cols-4 {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+  
+  /* Slightly reduce padding in cards when sidebar is open, but keep readability */
+  html.sidebar-collapsed .bg-white.rounded-2xl {
+    padding: 0.875rem !important;
+  }
+  
+  html.sidebar-collapsed .bg-white.rounded-2xl h2,
+  html.sidebar-collapsed .bg-white.rounded-2xl h3 {
+    font-size: 0.95em !important;
+  }
+  
+  /* Adjust table responsiveness when sidebar is open */
+  html.sidebar-collapsed .table-responsive {
+    margin: 0 -0.5rem;
+    padding: 0 0.5rem;
+  }
+  
+  /* Ensure text remains readable */
+  html.sidebar-collapsed #mainContent {
+    font-size: 0.95em;
+  }
+  
+  html.sidebar-collapsed #mainContent h1 {
+    font-size: 1.5rem !important;
+  }
+  
+  html.sidebar-collapsed #mainContent h2 {
+    font-size: 1.25rem !important;
+  }
+}
+
+/* Tables: horizontal scroll on small screens */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -1rem;
+  padding: 0 1rem;
+}
+
+.table-responsive table {
+  min-width: 900px;
+}
+
+@media (max-width: 640px) {
+  .table-responsive table {
+    min-width: 720px;
+    font-size: 0.875rem;
+  }
+  
+  .table-responsive th,
+  .table-responsive td {
+    padding: 0.5rem 0.75rem !important;
+  }
+}
+
+/* Forms: full-width inputs on mobile */
+@media (max-width: 768px) {
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .form-grid > * {
+    width: 100%;
+  }
+  
+  /* Make form inputs more touch-friendly */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 0.75rem !important;
+  }
+}
+
+/* Stats cards responsive */
+@media (max-width: 640px) {
+  #stats-section {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  #stats-section > div {
+    padding: 1rem !important;
+  }
+  
+  #stats-section h3 {
+    font-size: 0.875rem !important;
+  }
+  
+  #stats-section p {
+    font-size: 1.5rem !important;
+  }
+}
+
+/* Charts responsive */
+@media (max-width: 1024px) {
+  section.grid.lg\\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 640px) {
+  section.grid.lg\\:grid-cols-3 > div {
+    padding: 1rem !important;
+  }
+  
+  section.grid.lg\\:grid-cols-3 h3 {
+    font-size: 1rem !important;
+  }
+  
+  section.grid.lg\\:grid-cols-3 .h-60 {
+    height: 200px !important;
+  }
+}
+
+/* Modals responsive */
+@media (max-width: 640px) {
+  .fixed.inset-0.items-center.justify-center {
+    padding: 0.5rem !important;
+  }
+  
+  .fixed.inset-0.items-center.justify-center > div {
+    max-width: 100% !important;
+    max-height: 95vh !important;
+    margin: 0 !important;
+    border-radius: 1rem !important;
+  }
+  
+  /* Modal content padding */
+  .fixed.inset-0.items-center.justify-center > div > div {
+    padding: 1rem !important;
+  }
+}
+
+/* Utility: stack header actions on small screens */
+@media (max-width: 768px) {
+  .stack-sm {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* Button improvements for mobile */
+@media (max-width: 640px) {
+  button,
+  a[role="button"] {
+    min-height: 44px; /* Touch target size */
+    padding: 0.625rem 1rem !important;
+  }
+}
+
+/* Card improvements */
+@media (max-width: 640px) {
+  .bg-white.rounded-2xl {
+    border-radius: 1rem !important;
+    padding: 1rem !important;
+  }
+  
+  .bg-white.rounded-2xl h2 {
+    font-size: 1.125rem !important;
+  }
+}
+
+/* === Dark Mode Overrides === */
+/* Color variables for dark mode */
+:root {
+  --dm-bg: #0b1220;
+  --dm-surface: #0f172a;
+  --dm-surface-2: #111827;
+  --dm-text: #e5e7eb;
+  --dm-text-muted: #cbd5e1;
+  --dm-border: #1f2937;
+  --dm-border-soft: #334155;
+  --dm-accent: #34d399; /* emerald-400 */
+  --dm-accent-strong: #10b981; /* emerald-500 */
+}
+
+html.dark body { background-color: var(--dm-bg); color: var(--dm-text); }
+html.dark header { background-color: rgba(2, 6, 23, 0.85) !important; border-color: var(--dm-border-soft) !important; }
+
+/* Common containers */
+html.dark .bg-white { background-color: var(--dm-surface) !important; }
+html.dark .bg-gray-50 { background-color: var(--dm-bg) !important; }
+html.dark .bg-white\/60 { background-color: rgba(15, 23, 42, 0.6) !important; }
+html.dark .bg-white\/95 { background-color: rgba(15, 23, 42, 0.95) !important; }
+
+/* Text colors */
+html.dark .text-gray-900 { color: #f3f4f6 !important; }
+html.dark .text-gray-700 { color: var(--dm-text) !important; }
+html.dark .text-gray-600 { color: #d1d5db !important; }
+html.dark .text-gray-500 { color: var(--dm-text-muted) !important; }
+html.dark .text-gray-400 { color: #94a3b8 !important; }
+html.dark .text-emerald-600 { color: var(--dm-accent) !important; }
+html.dark .text-blue-600 { color: #60a5fa !important; }
+html.dark .text-red-600 { color: #f87171 !important; }
+
+/* Borders */
+html.dark .border-gray-100 { border-color: var(--dm-border) !important; }
+html.dark .border-gray-200 { border-color: var(--dm-border-soft) !important; }
+html.dark .border-emerald-200\/50 { border-color: rgba(16, 185, 129, 0.35) !important; }
+
+/* Hovers */
+html.dark .hover\:bg-gray-50:hover { background-color: #0f172a !important; }
+html.dark .hover\:bg-emerald-50\/50:hover { background-color: rgba(16, 185, 129, 0.10) !important; }
+
+/* Inputs */
+html.dark input, html.dark textarea, html.dark select {
+  background-color: var(--dm-surface) !important;
+  color: var(--dm-text) !important;
+  border-color: var(--dm-border-soft) !important;
+}
+
+/* Cards and modals */
+html.dark .shadow-lg, html.dark .shadow-md { box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important; }
+html.dark .fixed.inset-0.items-center.justify-center > div { background-color: var(--dm-surface) !important; }
+
+/* Badges and subtle containers */
+html.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.10) !important; }
+html.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.10) !important; }
+html.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.10) !important; }
+
+/* Page headers: make titles and subtitles stand out in dark */
+html.dark .page-title { color: #f3f4f6 !important; }
+html.dark .page-subtitle { color: var(--dm-text) !important; font-weight: 500; }
