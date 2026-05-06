@@ -1,0 +1,928 @@
+<?php
+session_start();
+include('db.php');
+
+if (!isset($_SESSION['admin'])) {
+    header("Location: admin-login.php");
+    exit;
+}
+
+$admin = $_SESSION['admin'];
+$success = $error = "";
+
+// ✅ Predefined list of property features
+$all_features = [
+    "Clear Title", "Utilities Available", "Road Access", "Lake Access",
+    "Zoned Residential", "Surveyed", "Fertile Soil", "Water Rights", "Fenced",
+    "Near Forest/Park", "Highway Access", "Scenic View", "Irrigation Available",
+    "Gated Community", "Solar Potential"
+];
+
+// ✅ Predefined list of Kenyan Counties
+$kenyaCounties = [
+    "Mombasa", "Kwale", "Kilifi", "Tana River", "Lamu", "Taita/Taveta", "Garissa", "Wajir", "Mandera", "Marsabit",
+    "Isiolo", "Meru", "Tharaka-Nithi", "Embu", "Kitui", "Machakos", "Makueni", "Nyandarua", "Nyeri", "Kirinyaga",
+    "Murang'a", "Kiambu", "Turkana", "West Pokot", "Samburu", "Trans Nzoia", "Uasin Gishu", "Elgeyo/Marakwet", "Nandi", "Baringo",
+    "Laikipia", "Nakuru", "Narok", "Kajiado", "Kericho", "Bomet", "Kakamega", "Vihiga", "Bungoma", "Busia",
+    "Siaya", "Kisumu", "Homa Bay", "Migori", "Kisii", "Nyamira", "Nairobi City"
+];
+
+// ✅ Add Property
+if (isset($_POST['add_property'])) {
+    $title       = trim($_POST['title']);
+    $location    = trim($_POST['location']);
+    $county      = trim($_POST['county']); // 🔹 Capture County
+    $price       = trim($_POST['price']);
+    $type        = $_POST['type'];
+    $size        = trim($_POST['size'] ?? '');
+    $description = trim($_POST['description']);
+    $features    = isset($_POST['features']) ? implode(", ", $_POST['features']) : "";
+
+    // Check for duplicates
+    $check = $conn->prepare("SELECT id FROM properties WHERE title=? AND location=? LIMIT 1");
+    $check->bind_param("ss", $title, $location);
+    $check->execute();
+    $check->store_result();
+
+    if ($check->num_rows > 0) {
+        $error = "❌ This property already exists!";
+    } else {
+        $image = "";
+        if (!empty($_FILES['image']['name'])) {
+            $targetDir = "uploads/";
+            if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
+            $image = $targetDir . time() . "_" . basename($_FILES["image"]["name"]);
+            move_uploaded_file($_FILES["image"]["tmp_name"], $image);
+        }
+
+        // 🔹 Updated Query to include 'county'
+        $stmt = $conn->prepare("INSERT INTO properties (title, location, county, price, size, type, image, features, description) VALUES (?,?,?,?,?,?,?,?,?)");
+        $stmt->bind_param("sssdsssss", $title, $location, $county, $price, $size, $type, $image, $features, $description);
+        $stmt->execute() ? $success = "✅ Property added!" : $error = "❌ Error: " . $stmt->error;
+    }
+}
+
+// ✅ Delete Property
+if (isset($_GET['delete'])) {
+    $id = intval($_GET['delete']);
+    $stmt = $conn->prepare("DELETE FROM properties WHERE id=?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute() ? $success = "✅ Property deleted!" : $error = "❌ Error deleting property!";
+}
+
+// ✅ Edit Property
+if (isset($_POST['edit_property'])) {
+    $id          = intval($_POST['id']);
+    $title       = trim($_POST['title']);
+    $location    = trim($_POST['location']);
+    $county      = trim($_POST['county']); // 🔹 Capture County
+    $price       = trim($_POST['price']);
+    $type        = $_POST['type'];
+    $size        = trim($_POST['size'] ?? '');
+    $description = trim($_POST['description']);
+    $features    = isset($_POST['features']) ? implode(", ", $_POST['features']) : "";
+
+    $image = $_POST['old_image'];
+    if (!empty($_FILES['image']['name'])) {
+        $targetDir = "uploads/";
+        if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
+        $image = $targetDir . time() . "_" . basename($_FILES["image"]["name"]);
+        move_uploaded_file($_FILES["image"]["tmp_name"], $image);
+    }
+
+    // 🔹 Updated Query to include 'county'
+    $stmt = $conn->prepare("UPDATE properties SET title=?, location=?, county=?, price=?, size=?, type=?, image=?, features=?, description=? WHERE id=?");
+    $stmt->bind_param("sssdsssssi", $title, $location, $county, $price, $size, $type, $image, $features, $description, $id);
+    $stmt->execute() ? $success = "✅ Property updated!" : $error = "❌ Error updating property!";
+}
+
+$result = $conn->query("SELECT * FROM properties ORDER BY created_at DESC");
+
+// Get statistics
+$total_properties = $conn->query("SELECT COUNT(*) as count FROM properties")->fetch_assoc()['count'];
+$sale_count = $conn->query("SELECT COUNT(*) as count FROM properties WHERE type='Sale'")->fetch_assoc()['count'];
+$rent_count = $conn->query("SELECT COUNT(*) as count FROM properties WHERE type='Rent'")->fetch_assoc()['count'];
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"> 
+  <title>Admin - Manage Properties</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    // Tailwind Config
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .stat-card {
+      transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+      transform: translateY(-4px);
+    }
+    .table-row {
+      transition: all 0.2s ease;
+    }
+    .view-toggle-btn.active {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border-color: #10b981;
+    }
+    
+    /* Dark mode overrides for active toggle */
+    html.dark .view-toggle-btn.active {
+        background: linear-gradient(135deg, #059669, #047857);
+        border-color: #059669;
+    }
+  </style>
+  <script>
+    // Preserve sidebar collapsed state
+    const collapsed = localStorage.getItem("sidebarCollapsed") === "true";
+    if (collapsed) document.documentElement.classList.add("sidebar-collapsed");
+    
+    // Check for saved theme
+    if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+  </script>
+</head>
+
+<body class="bg-gray-50 dark:bg-slate-950 transition-colors duration-200">
+<?php include('admin-header.php'); ?>
+
+<?php include('admin-sidebar.php'); ?>
+
+  <main id="mainContent" class="pt-20 pb-20 sm:pb-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+      <div>
+        <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3 mb-2">
+          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg flex-shrink-0">
+            <i data-lucide="home" class="w-5 h-5 sm:w-6 sm:h-6 text-white"></i>
+          </div>
+          Manage Properties
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400 text-sm sm:text-base">Add, edit, and manage all property listings</p>
+      </div>
+      <button type="button" onclick="openAddModal()" 
+              class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-3 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+        <i data-lucide="plus" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+        <span>Add Property</span>
+      </button>
+    </div>
+
+    <?php if ($success): ?>
+      <div class="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 rounded-xl flex items-center gap-3 shadow-sm">
+        <i data-lucide="check-circle" class="w-5 h-5 text-emerald-600 dark:text-emerald-500 flex-shrink-0"></i>
+        <span class="font-medium text-sm sm:text-base"><?= $success ?></span>
+      </div>
+    <?php endif; ?>
+    <?php if ($error): ?>
+      <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl flex items-center gap-3 shadow-sm">
+        <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 dark:text-red-500 flex-shrink-0"></i>
+        <span class="font-medium text-sm sm:text-base"><?= $error ?></span>
+      </div>
+    <?php endif; ?>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      <div class="stat-card bg-white dark:bg-slate-900 rounded-2xl shadow-md p-5 sm:p-6 border border-blue-100/50 dark:border-slate-800">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1 font-medium">Total Properties</p>
+            <p class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white"><?= $total_properties ?></p>
+            <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">All listings</p>
+          </div>
+          <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+            <i data-lucide="building-2" class="w-6 h-6 sm:w-7 sm:h-7 text-white"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="stat-card bg-white dark:bg-slate-900 rounded-2xl shadow-md p-5 sm:p-6 border border-emerald-100/50 dark:border-slate-800">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1 font-medium">For Sale</p>
+            <p class="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400"><?= $sale_count ?></p>
+            <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Available now</p>
+          </div>
+          <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg">
+            <i data-lucide="tag" class="w-6 h-6 sm:w-7 sm:h-7 text-white"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="stat-card bg-white dark:bg-slate-900 rounded-2xl shadow-md p-5 sm:p-6 border border-purple-100/50 dark:border-slate-800">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1 font-medium">For Rent</p>
+            <p class="text-2xl sm:text-3xl font-bold text-purple-600 dark:text-purple-400"><?= $rent_count ?></p>
+            <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Rental properties</p>
+          </div>
+          <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <i data-lucide="key" class="w-6 h-6 sm:w-7 sm:h-7 text-white"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-md p-4 sm:p-6 mb-6 border border-gray-100 dark:border-slate-800">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="flex-1 sm:max-w-md w-full">
+          <div class="relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"></i>
+            <input type="text" id="searchInput" placeholder="Search..." 
+                   class="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition text-sm bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400">
+          </div>
+        </div>
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <button type="button" id="tableViewBtn" onclick="switchView('table')" class="view-toggle-btn active flex-1 sm:flex-none justify-center px-4 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 text-sm font-medium transition-all hover:shadow-md text-gray-700 dark:text-gray-200">
+            <i data-lucide="table" class="w-4 h-4 inline-block mr-2"></i>
+            Table
+          </button>
+          <button type="button" id="cardViewBtn" onclick="switchView('card')" class="view-toggle-btn flex-1 sm:flex-none justify-center px-4 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 text-sm font-medium transition-all hover:shadow-md hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-200">
+            <i data-lucide="grid" class="w-4 h-4 inline-block mr-2"></i>
+            Cards
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tableView" class="bg-white dark:bg-slate-900 rounded-2xl shadow-md overflow-hidden fade-in border border-gray-100 dark:border-slate-800">
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-800 bg-gradient-to-r from-gray-50 to-white dark:from-slate-900 dark:to-slate-900">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <i data-lucide="list" class="w-5 h-5 text-gray-600 dark:text-gray-400"></i>
+            All Properties
+          </h2>
+          <span class="text-xs sm:text-sm text-gray-500 dark:text-gray-400" id="tableCount"><?= $result->num_rows ?> properties</span>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full divide-y divide-gray-200 dark:divide-slate-800">
+          <thead class="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-800/80">
+            <tr>
+              <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">ID</th>
+              
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Image</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Title</th>
+              
+              <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Location</th>
+              <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">County</th> 
+              
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Price</th>
+              
+              <th class="hidden xl:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Size</th>
+              <th class="hidden sm:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Type</th>
+              <th class="hidden xl:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Features</th>
+              
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-100 dark:divide-slate-800">
+            <?php if($result->num_rows > 0): ?>
+              <?php while($row = $result->fetch_assoc()): ?>
+                <tr class="table-row property-row hover:bg-gray-50 dark:hover:bg-slate-800/50" 
+                    data-title="<?= strtolower(htmlspecialchars($row['title'])) ?>" 
+                    data-location="<?= strtolower(htmlspecialchars($row['location'])) ?>" 
+                    data-county="<?= strtolower(htmlspecialchars($row['county'] ?? '')) ?>"
+                    data-features="<?= strtolower(htmlspecialchars($row['features'])) ?>">
+                  
+                  <td class="hidden lg:table-cell px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">#<?= $row['id'] ?></td>
+                  
+                  <td class="px-4 py-3">
+                    <?php 
+                      $imgPath = '';
+                      if (!empty($row['image'])) {
+                        $raw = trim($row['image']);
+                        if (preg_match('/^https?:\/\//', $raw)) {
+                          $imgPath = $raw;
+                        } else {
+                          // Normalize to admin-relative uploads path
+                          $raw = preg_replace('/^admin\//', '', $raw);
+                          $imgPath = (strpos($raw, 'uploads/') === 0) ? $raw : ('uploads/' . ltrim($raw, '/'));
+                        }
+                      }
+                    ?>
+                    <?php if ($imgPath): ?>
+                      <img src="<?= htmlspecialchars($imgPath) ?>" 
+                           alt="<?= htmlspecialchars($row['title']) ?>" 
+                           class="w-12 h-12 sm:w-16 sm:h-12 rounded-lg object-cover"
+                           onerror="this.src='https://via.placeholder.com/64x48?text=No+Image'">
+                    <?php else: ?>
+                      <div class="w-12 h-12 sm:w-16 sm:h-12 rounded-lg bg-gray-200 dark:bg-slate-800 flex items-center justify-center">
+                        <i data-lucide="image" class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400"></i>
+                      </div>
+                    <?php endif; ?>
+                  </td>
+                  
+                  <td class="px-4 py-3">
+                    <span class="font-semibold text-sm sm:text-base text-gray-900 dark:text-gray-100 block max-w-[120px] sm:max-w-none truncate"><?= htmlspecialchars($row['title']) ?></span>
+                  </td>
+                  
+                  <td class="hidden md:table-cell px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                    <div class="flex items-center gap-1">
+                      <i data-lucide="map-pin" class="w-3.5 h-3.5 text-gray-400"></i>
+                      <?= htmlspecialchars($row['location']) ?>
+                    </div>
+                  </td>
+                  
+                  <td class="hidden lg:table-cell px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                     <?= htmlspecialchars($row['county'] ?? 'N/A') ?>
+                  </td>
+                  
+                  <td class="px-4 py-3">
+                    <span class="font-bold text-xs sm:text-sm text-emerald-600 dark:text-emerald-400">KSh <?= number_format($row['price'], 2) ?></span>
+                  </td>
+                  
+                  <td class="hidden xl:table-cell px-4 py-3 text-sm text-gray-700 dark:text-gray-300"><?= htmlspecialchars($row['size'] ?? 'N/A') ?></td>
+                  
+                  <td class="hidden sm:table-cell px-4 py-3">
+                    <span class="px-2.5 py-1 rounded-full text-xs font-medium <?= $row['type'] === 'Sale' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' ?>">
+                      <?= htmlspecialchars($row['type']) ?>
+                    </span>
+                  </td>
+                  
+                  <td class="hidden xl:table-cell px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate"><?= htmlspecialchars($row['features']) ?></td>
+                  
+                  <td class="px-4 py-3 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                      <button type="button" onclick="openEditModal(<?= htmlspecialchars(json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8') ?>)" 
+                              class="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition" title="Edit">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                      </button>
+                      <a href="?delete=<?= $row['id'] ?>" 
+                         onclick="return confirm('Are you sure you want to delete this property?')" 
+                         class="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition" title="Delete">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              <?php endwhile; ?>
+            <?php else: ?>
+              <tr>
+                <td colspan="10" class="text-center text-gray-500 dark:text-gray-400 py-12">
+                  <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-600"></i>
+                  <p class="font-medium">No properties found</p>
+                  <p class="text-sm mt-1">Add your first property to get started</p>
+                </td>
+              </tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="cardView" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <?php 
+      $result->data_seek(0);
+      if($result->num_rows > 0): ?>
+        <?php while($row = $result->fetch_assoc()): 
+          $imgSrc = 'https://via.placeholder.com/400x300?text=No+Image';
+          if (!empty($row['image'])) {
+            $raw = trim($row['image']);
+            if (preg_match('/^https?:\/\//', $raw)) {
+              $imgSrc = $raw;
+            } else {
+              $raw = preg_replace('/^admin\//', '', $raw);
+              $imgSrc = (strpos($raw, 'uploads/') === 0) ? $raw : ('uploads/' . ltrim($raw, '/'));
+            }
+          }
+        ?>
+          <div class="property-card-row bg-white dark:bg-slate-900 rounded-2xl shadow-md overflow-hidden border border-gray-100 dark:border-slate-800 hover:shadow-xl transition-all duration-300 hover:-translate-y-1" 
+               data-title="<?= strtolower(htmlspecialchars($row['title'])) ?>" 
+               data-location="<?= strtolower(htmlspecialchars($row['location'])) ?>"
+               data-county="<?= strtolower(htmlspecialchars($row['county'] ?? '')) ?>"
+               data-features="<?= strtolower(htmlspecialchars($row['features'])) ?>">
+            <div class="relative">
+              <img src="<?= htmlspecialchars($imgSrc) ?>" 
+                   alt="<?= htmlspecialchars($row['title']) ?>" 
+                   class="w-full h-48 object-cover"
+                   onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'">
+              <div class="absolute top-3 right-3">
+                <span class="px-3 py-1 rounded-full text-xs font-medium bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-md <?= $row['type'] === 'Sale' ? 'text-emerald-700 dark:text-emerald-400' : 'text-purple-700 dark:text-purple-400' ?>">
+                  <?= htmlspecialchars($row['type']) ?>
+                </span>
+              </div>
+              <div class="absolute bottom-3 left-3">
+                <span class="px-3 py-1.5 rounded-full text-sm font-bold bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-md text-emerald-600 dark:text-emerald-400">
+                  KSh <?= number_format($row['price'], 2) ?>
+                </span>
+              </div>
+            </div>
+            <div class="p-5">
+              <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-1"><?= htmlspecialchars($row['title']) ?></h3>
+              <div class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 mb-1">
+                <i data-lucide="map-pin" class="w-4 h-4 text-gray-400"></i>
+                <span class="line-clamp-1"><?= htmlspecialchars($row['location']) ?></span>
+              </div>
+              <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-500 mb-3 ml-5">
+                  <span>(<?= htmlspecialchars($row['county'] ?? 'County not set') ?>)</span>
+              </div>
+              <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-slate-800">
+                <div>
+                  <p class="text-xs text-gray-500 dark:text-gray-500 mb-1">Size</p>
+                  <p class="text-sm font-semibold text-gray-700 dark:text-gray-300"><?= htmlspecialchars($row['size'] ?? 'N/A') ?></p>
+                </div>
+                <div class="text-right">
+                  <p class="text-xs text-gray-500 dark:text-gray-500 mb-1">ID</p>
+                  <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">#<?= $row['id'] ?></p>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button type="button" onclick="openEditModal(<?= htmlspecialchars(json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8') ?>)" 
+                        class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl font-medium hover:bg-blue-100 dark:hover:bg-blue-900/40 transition text-sm shadow-sm hover:shadow-md">
+                  <i data-lucide="pencil" class="w-4 h-4"></i>
+                  Edit
+                </button>
+                <a href="?delete=<?= $row['id'] ?>" 
+                   onclick="return confirm('Are you sure you want to delete this property?')" 
+                   class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl font-medium hover:bg-red-100 dark:hover:bg-red-900/40 transition text-sm shadow-sm hover:shadow-md">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  Delete
+                </a>
+              </div>
+            </div>
+          </div>
+        <?php endwhile; ?>
+      <?php else: ?>
+        <div class="col-span-full text-center py-12">
+          <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center">
+            <i data-lucide="inbox" class="w-10 h-10 text-gray-400 dark:text-gray-500"></i>
+          </div>
+          <p class="font-semibold text-gray-700 dark:text-gray-300 mb-2 text-lg">No properties found</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Add your first property to get started</p>
+          <button type="button" onclick="openAddModal()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition shadow-md hover:shadow-lg">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            Add Property
+          </button>
+        </div>
+      <?php endif; ?>
+    </div>
+    </div>
+  </main>
+
+<div id="addModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+  <div class="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-3xl shadow-2xl w-full max-w-3xl h-[90vh] sm:h-auto sm:max-h-[95vh] overflow-y-auto relative fade-in border border-gray-200 dark:border-slate-800">
+    <div class="bg-gradient-to-r from-emerald-600 via-emerald-500 to-green-600 p-4 sm:p-6 rounded-t-2xl sm:rounded-t-3xl sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+            <i data-lucide="plus" class="w-5 h-5 sm:w-6 sm:h-6 text-white"></i>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-bold text-white">Add Property</h2>
+        </div>
+        <button type="button" onclick="closeAddModal()" class="p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white transition">
+          <i data-lucide="x" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+        </button>
+      </div>
+    </div>
+    
+    <div class="p-4 sm:p-6">
+
+      <form method="POST" enctype="multipart/form-data" class="space-y-5 sm:space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Property Title *</label>
+            <input type="text" name="title" placeholder="Enter property title" 
+                   class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400" required>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Location *</label>
+            <input type="text" name="location" placeholder="Enter location" 
+                   class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400" required>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">County *</label>
+            <select name="county" class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white" required>
+                <option value="">-- Select County --</option>
+                <?php foreach ($kenyaCounties as $c): ?>
+                    <option value="<?= htmlspecialchars($c) ?>"><?= htmlspecialchars($c) ?></option>
+                <?php endforeach; ?>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Price (KSh) *</label>
+            <input type="number" step="0.01" name="price" placeholder="Enter price" 
+                   class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400" required>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Size</label>
+            <input type="text" name="size" placeholder="e.g. 0.5 acre or 500 m²" 
+                   class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Type *</label>
+            <select name="type" class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white" required>
+              <option value="">-- Select Type --</option>
+              <option value="Sale">For Sale</option>
+              <option value="Rent">For Rent</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description</label>
+          <textarea name="description" placeholder="Enter detailed property description..." rows="4" 
+                    class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition text-base sm:text-sm resize-none bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Property Features</label>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-40 overflow-y-auto border border-gray-200 dark:border-slate-700 rounded-xl p-4 bg-gray-50 dark:bg-slate-800/50">
+            <?php foreach($all_features as $feat): ?>
+              <label class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 cursor-pointer transition">
+                <input type="checkbox" name="features[]" value="<?= $feat ?>" class="w-4 h-4 text-emerald-600 border-gray-300 dark:border-slate-600 rounded focus:ring-emerald-500 bg-white dark:bg-slate-700">
+                <span class="text-sm text-gray-700 dark:text-gray-300"><?= $feat ?></span>
+              </label>
+            <?php endforeach; ?>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Property Image</label>
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div class="relative w-full sm:w-40 h-32 rounded-xl overflow-hidden border-2 border-dashed border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
+              <img id="add_preview" src="https://via.placeholder.com/400x300?text=No+Image" class="w-full h-full object-cover">
+            </div>
+            <div class="flex-1 w-full">
+              <input type="file" name="image" accept="image/*" 
+                     class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white" 
+                     onchange="previewAddImage(event)">
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Recommended: 800x600px or larger</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-3 pt-4 border-t border-gray-200 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900 pb-2">
+          <button type="button" onclick="closeAddModal()" 
+                  class="flex-1 px-4 py-3 border border-gray-300 dark:border-slate-700 rounded-xl font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition">
+            Cancel
+          </button>
+          <button type="submit" name="add_property" 
+                  class="flex-1 px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <span class="flex items-center justify-center gap-2">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              Add
+            </span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="editModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+  <div class="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-3xl shadow-2xl w-full max-w-3xl h-[90vh] sm:h-auto sm:max-h-[95vh] overflow-y-auto relative fade-in border border-gray-200 dark:border-slate-800">
+    <div class="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 p-4 sm:p-6 rounded-t-2xl sm:rounded-t-3xl sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+            <i data-lucide="pencil" class="w-5 h-5 sm:w-6 sm:h-6 text-white"></i>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-bold text-white">Edit Property</h2>
+        </div>
+        <button type="button" onclick="closeEditModal()" class="p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white transition">
+          <i data-lucide="x" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+        </button>
+      </div>
+    </div>
+    
+    <div class="p-4 sm:p-6">
+
+      <form method="POST" enctype="multipart/form-data" id="editForm" class="space-y-5 sm:space-y-6">
+        <input type="hidden" name="id" id="edit_id">
+        <input type="hidden" name="old_image" id="edit_old_image">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Property Title *</label>
+            <input type="text" name="title" id="edit_title" 
+                   class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400" required>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Location *</label>
+            <input type="text" name="location" id="edit_location" 
+                   class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400" required>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">County *</label>
+            <select name="county" id="edit_county" class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white" required>
+                <option value="">-- Select County --</option>
+                <?php foreach ($kenyaCounties as $c): ?>
+                    <option value="<?= htmlspecialchars($c) ?>"><?= htmlspecialchars($c) ?></option>
+                <?php endforeach; ?>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Price (KSh) *</label>
+            <input type="number" step="0.01" name="price" id="edit_price" 
+                   class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400" required>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Size</label>
+            <input type="text" name="size" id="edit_size" placeholder="e.g. 0.5 acre or 500 m²" 
+                   class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Type *</label>
+            <select name="type" id="edit_type" 
+                    class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white" required>
+              <option value="Sale">For Sale</option>
+              <option value="Rent">For Rent</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description</label>
+          <textarea name="description" id="edit_description" placeholder="Enter detailed property description..." rows="4" 
+                    class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base sm:text-sm resize-none bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Property Features</label>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-40 overflow-y-auto border border-gray-200 dark:border-slate-700 rounded-xl p-4 bg-gray-50 dark:bg-slate-800/50">
+            <?php foreach($all_features as $feat): ?>
+              <label class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 cursor-pointer transition">
+                <input type="checkbox" name="features[]" value="<?= $feat ?>" class="feature-checkbox w-4 h-4 text-blue-600 border-gray-300 dark:border-slate-600 rounded focus:ring-blue-500 bg-white dark:bg-slate-700">
+                <span class="text-sm text-gray-700 dark:text-gray-300"><?= $feat ?></span>
+              </label>
+            <?php endforeach; ?>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Property Image</label>
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div class="relative w-full sm:w-40 h-32 rounded-xl overflow-hidden border-2 border-dashed border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
+              <img id="edit_preview" src="https://via.placeholder.com/400x300?text=No+Image" class="w-full h-full object-cover">
+            </div>
+            <div class="flex-1 w-full">
+              <input type="file" name="image" accept="image/*" 
+                     class="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white" 
+                     onchange="previewEditImage(event)">
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Leave empty to keep current image</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-3 pt-4 border-t border-gray-200 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900 pb-2">
+          <button type="button" onclick="closeEditModal()" 
+                  class="flex-1 px-4 py-3 border border-gray-300 dark:border-slate-700 rounded-xl font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition">
+            Cancel
+          </button>
+          <button type="submit" name="edit_property" 
+                  class="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <span class="flex items-center justify-center gap-2">
+              <i data-lucide="save" class="w-4 h-4"></i>
+              Update
+            </span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// Initialize Lucide icons
+lucide.createIcons();
+
+// Prevent multiple simultaneous calls
+let isProcessing = false;
+
+function previewAddImage(e) {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = ev => document.getElementById('add_preview').src = ev.target.result;
+    reader.readAsDataURL(file);
+  }
+}
+
+function previewEditImage(e) {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = ev => document.getElementById('edit_preview').src = ev.target.result;
+    reader.readAsDataURL(file);
+  }
+}
+
+function openAddModal() {
+  if (isProcessing) return;
+  isProcessing = true;
+  
+  try {
+    const modal = document.getElementById("addModal");
+    const footer = document.querySelector('footer');
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      document.body.style.overflow = 'hidden';
+      if (footer) footer.style.display = 'none';
+      lucide.createIcons();
+    }
+  } catch (e) {
+    console.error('Error opening add modal:', e);
+  } finally {
+    setTimeout(() => { isProcessing = false; }, 100);
+  }
+}
+
+function closeAddModal() {
+  const modal = document.getElementById("addModal");
+  const footer = document.querySelector('footer');
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+    document.body.style.overflow = '';
+    if (footer) footer.style.display = '';
+  }
+}
+
+function openEditModal(data) {
+  if (isProcessing) return;
+  isProcessing = true;
+  
+  try {
+    // Validate data
+    if (!data || typeof data !== 'object') {
+      console.error('Invalid data passed to openEditModal');
+      return;
+    }
+    
+    // Fill form fields
+    const editId = document.getElementById("edit_id");
+    const editTitle = document.getElementById("edit_title");
+    const editLocation = document.getElementById("edit_location");
+    const editCounty = document.getElementById("edit_county"); // 🔹 Added
+    const editPrice = document.getElementById("edit_price");
+    const editSize = document.getElementById("edit_size");
+    const editType = document.getElementById("edit_type");
+    const editDescription = document.getElementById("edit_description");
+    const editOldImage = document.getElementById("edit_old_image");
+    const editPreview = document.getElementById("edit_preview");
+    
+    if (!editId || !editTitle || !editLocation || !editPrice || !editType) {
+      console.error('Required form elements not found');
+      return;
+    }
+    
+    editId.value = data.id || '';
+    editTitle.value = data.title || '';
+    editLocation.value = data.location || '';
+    if(editCounty) editCounty.value = data.county || ''; // 🔹 Set County
+    editPrice.value = data.price || '';
+    editSize.value = data.size || '';
+    editType.value = data.type || 'Sale';
+    editDescription.value = data.description || '';
+    editOldImage.value = data.image || '';
+    
+    // Set image preview
+    let imgSrc = "https://via.placeholder.com/150";
+    if (data.image && data.image.trim()) {
+      imgSrc = data.image.startsWith('admin/') ? data.image : 'admin/' + data.image;
+    }
+    editPreview.src = imgSrc;
+
+    // Handle features - data.features is a string like "Feature1, Feature2"
+    const featuresStr = (data.features || '').toString();
+    const featuresArray = featuresStr ? featuresStr.split(',').map(f => f.trim()) : [];
+    
+    document.querySelectorAll("#editModal .feature-checkbox").forEach(cb => {
+      cb.checked = false;
+      if (featuresArray.length > 0 && featuresArray.includes(cb.value)) {
+        cb.checked = true;
+      }
+    });
+
+    // Show modal
+    const modal = document.getElementById("editModal");
+    const footer = document.querySelector('footer');
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      document.body.style.overflow = 'hidden';
+      if (footer) footer.style.display = 'none';
+      lucide.createIcons();
+    }
+  } catch (error) {
+    console.error('Error opening edit modal:', error);
+    alert('Error loading property data. Please refresh the page.');
+  } finally {
+    setTimeout(() => { isProcessing = false; }, 100);
+  }
+}
+
+function closeEditModal() {
+  const modal = document.getElementById("editModal");
+  const footer = document.querySelector('footer');
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+    document.body.style.overflow = '';
+    if (footer) footer.style.display = '';
+  }
+}
+
+// View Toggle Function
+function switchView(view) {
+  const tableView = document.getElementById('tableView');
+  const cardView = document.getElementById('cardView');
+  const tableBtn = document.getElementById('tableViewBtn');
+  const cardBtn = document.getElementById('cardViewBtn');
+  
+  if (view === 'table') {
+    tableView.classList.remove('hidden');
+    cardView.classList.add('hidden');
+    tableBtn.classList.add('active');
+    cardBtn.classList.remove('active');
+  } else {
+    tableView.classList.add('hidden');
+    cardView.classList.remove('hidden');
+    cardBtn.classList.add('active');
+    tableBtn.classList.remove('active');
+  }
+  lucide.createIcons();
+}
+
+// Search Functionality
+document.getElementById('searchInput')?.addEventListener('input', function(e) {
+  const searchTerm = e.target.value.toLowerCase().trim();
+  const rows = document.querySelectorAll('.property-row, .property-card-row');
+  let visibleCount = 0;
+  
+  rows.forEach(row => {
+    const title = row.getAttribute('data-title') || '';
+    const location = row.getAttribute('data-location') || '';
+    const county = row.getAttribute('data-county') || ''; // 🔹 Search by county
+    const features = row.getAttribute('data-features') || '';
+    
+    if (searchTerm === '' || title.includes(searchTerm) || location.includes(searchTerm) || county.includes(searchTerm) || features.includes(searchTerm)) {
+      row.style.display = '';
+      visibleCount++;
+    } else {
+      row.style.display = 'none';
+    }
+  });
+  
+  // Update count
+  const countEl = document.getElementById('tableCount');
+  if (countEl) {
+    countEl.textContent = visibleCount + ' properties' + (searchTerm ? ' found' : '');
+  }
+});
+
+// Close modals on backdrop click
+document.addEventListener('DOMContentLoaded', function() {
+  const addModal = document.getElementById('addModal');
+  const editModal = document.getElementById('editModal');
+  
+  if (addModal) {
+    addModal.addEventListener('click', function(e) {
+      if (e.target === this) closeAddModal();
+    });
+  }
+  
+  if (editModal) {
+    editModal.addEventListener('click', function(e) {
+      if (e.target === this) closeEditModal();
+    });
+  }
+  
+  // Close on Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeAddModal();
+      closeEditModal();
+    }
+  });
+  
+  // Initialize icons
+  lucide.createIcons();
+});
+</script>
+
+<?php include('admin-footer.php'); ?>
+</body>
+</html>

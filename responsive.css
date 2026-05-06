@@ -1,0 +1,487 @@
+/* Responsive Styles */
+
+/* -------------------------
+   General & Utility Classes
+   ------------------------- */
+
+/* Prevent horizontal scroll */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Small screens (e.g., mobile phones) */
+@media (max-width: 768px) {
+  /* Reduce default text size for better readability on small devices */
+  body {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Adjust padding for sections to save space */
+  section {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Utility to hide elements on mobile */
+  .hidden-mobile {
+    display: none;
+  }
+  
+  /* Ensure touch-friendly targets */
+  a, button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better form input sizing on mobile */
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="password"],
+  input[type="tel"],
+  select,
+  textarea {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 0.75rem !important;
+  }
+}
+
+/* -------------------------
+   Header & Navigation
+   ------------------------- */
+
+/* Medium screens and down (e.g., tablets and mobile) */
+@media (max-width: 1024px) {
+  /* Hide desktop navigation and show mobile menu button */
+  .desktop-nav {
+    display: none;
+  }
+
+  .mobile-menu-btn {
+    display: block;
+  }
+}
+
+/* Small screens (e.g., mobile phones) */
+@media (max-width: 768px) {
+  /* Adjust header padding */
+  .main-header .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Make logo slightly smaller */
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .logo-text {
+    font-size: 1.125rem; /* 18px */
+  }
+
+  /* Hide secondary logo text */
+  .logo-subtext {
+    display: none;
+  }
+
+  /* Adjust contact button for smaller screens */
+  .contact-btn {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem; /* 14px */
+  }
+
+  /* Hide "Contact" text, show only icon */
+  .contact-btn .contact-text {
+    display: none;
+  }
+
+  .contact-btn .icon {
+    margin-right: 0;
+  }
+  
+  /* Ensure header doesn't overflow */
+  nav {
+    overflow-x: hidden;
+  }
+}
+
+/* -------------------------
+   Modern Navigation Styles
+   ------------------------- */
+
+/* Desktop navigation link styling */
+.nav-link {
+  position: relative;
+  padding: 0.5rem 1rem; /* 8px 16px */
+  font-weight: 500; /* medium */
+  color: #374151; /* text-gray-700 */
+  border-radius: 9999px; /* rounded-full */
+  transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+.nav-link:hover {
+  color: #059669; /* hover:text-emerald-600 */
+  background-color: #ecfdf5; /* hover:bg-emerald-50 */
+}
+
+/* Active state for desktop navigation */
+.nav-link.active-nav-link {
+  color: #059669; /* text-emerald-600 */
+  background-color: #d1fae5; /* bg-emerald-200 */
+}
+
+/* Mobile Menu Styling */
+.mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid #f3f4f6; /* border-gray-100 */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
+  z-index: 40;
+  /* Animation properties */
+  transform: translateY(-10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.mobile-menu.active {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  color: #374151; /* text-gray-700 */
+  border-radius: 0.5rem; /* rounded-lg */
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.mobile-nav-link:hover {
+  background-color: #f0fdf4; /* A light emerald */
+  color: #059669; /* A darker emerald */
+}
+
+/* Active state for mobile navigation */
+.mobile-nav-link.active-nav-link {
+  background-color: #d1fae5; /* bg-emerald-200 */
+  color: #047857; /* text-emerald-700 */
+  font-weight: 600; /* semibold */
+}
+
+/* -------------------------
+   Hero Section
+   ------------------------- */
+
+@media (max-width: 768px) {
+  .hero-section {
+    min-height: 50vh !important;
+    padding: 2rem 1rem !important;
+  }
+  
+  .hero-section h1 {
+    font-size: 2rem; /* 32px */
+    line-height: 1.2;
+    margin-bottom: 1rem;
+  }
+
+  .hero-section p {
+    font-size: 0.875rem; /* 14px */
+    padding: 0 0.5rem;
+  }
+}
+
+/* -------------------------
+   Stats Section
+   ------------------------- */
+
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .stats-grid h3 {
+    font-size: 1.75rem; /* 28px */
+  }
+
+  .stats-grid p {
+    font-size: 0.875rem; /* 14px */
+  }
+  
+  .stats-grid > div {
+    padding: 1.5rem 1rem !important;
+  }
+}
+
+@media (max-width: 768px) and (min-width: 641px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* -------------------------
+   About Us Section
+   ------------------------- */
+
+@media (max-width: 768px) {
+  .about-grid,
+  .values-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .about-section h2 {
+    font-size: 2rem; /* 32px */
+  }
+}
+
+/* -------------------------
+   Featured Properties
+   ------------------------- */
+
+@media (max-width: 1024px) {
+  .properties-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .properties-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -------------------------
+   Properties Page
+   ------------------------- */
+
+@media (max-width: 768px) {
+  .filter-form {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem !important;
+  }
+
+  .filter-form > div {
+    width: 100% !important;
+  }
+
+  .filter-form input,
+  .filter-form select {
+    width: 100% !important;
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+  
+  .filter-form label {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+    display: block;
+  }
+}
+
+/* -------------------------
+   Modals
+   ------------------------- */
+
+@media (max-width: 768px) {
+  .modal-content {
+    padding: 1rem;
+    max-width: 95vw !important;
+    margin: 0.5rem !important;
+  }
+  
+  /* Ensure modals are scrollable on mobile */
+  .modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Better modal button sizing */
+  .modal-content button,
+  .modal-content a[role="button"] {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* -------------------------
+   Contact Page
+   ------------------------- */
+
+@media (max-width: 768px) {
+  .contact-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  /* Better spacing for contact forms */
+  .contact-grid form {
+    padding: 1rem;
+  }
+  
+  .contact-grid input,
+  .contact-grid textarea {
+    font-size: 16px !important;
+    padding: 0.75rem !important;
+  }
+}
+
+/* -------------------------
+   View Details Page
+   ------------------------- */
+
+@media (max-width: 1024px) {
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -------------------------
+   Footer
+   ------------------------- */
+
+@media (max-width: 1024px) {
+  .footer-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Footer Responsive Styles */
+@media (max-width: 640px) {
+  .footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
+  }
+  
+  footer {
+    padding-top: 2rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+  
+  footer h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  footer h3 {
+    font-size: 1rem !important;
+    margin-bottom: 1rem !important;
+  }
+  
+  footer ul li {
+    padding: 0.25rem 0 !important;
+  }
+  
+  footer a {
+    min-height: 44px; /* Touch-friendly */
+    display: flex;
+    align-items: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .footer-grid {
+    gap: 2rem;
+  }
+  
+  footer {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  footer h3,
+  footer h4 {
+    margin-bottom: 1rem;
+  }
+  
+  /* Stack contact info better on mobile */
+  footer .flex.items-start {
+    align-items: flex-start;
+  }
+  
+  /* Make email break properly */
+  footer a[href^="mailto:"] {
+    word-break: break-word;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  /* Even more compact spacing */
+  section {
+    padding: 2rem 0.75rem !important;
+  }
+  
+  /* Smaller headings */
+  h1 {
+    font-size: 1.75rem !important;
+  }
+  
+  h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  h3 {
+    font-size: 1.25rem !important;
+  }
+  
+  /* Compact cards */
+  .card,
+  .bg-white.rounded {
+    padding: 1rem !important;
+  }
+}
+
+/* =========================
+   Dark Mode (Public Pages)
+   ========================= */
+
+:root {
+  --site-dm-bg: #0b1220;
+  --site-dm-surface: #0f172a;
+  --site-dm-surface-2: #111827;
+  --site-dm-text: #e5e7eb;
+  --site-dm-text-muted: #cbd5e1;
+  --site-dm-border: #1f2937;
+  --site-dm-border-soft: #334155;
+  --site-dm-accent: #34d399;
+}
+
+html.dark body { background-color: var(--site-dm-bg); color: var(--site-dm-text); }
+html.dark nav { background-color: rgba(15, 23, 42, 0.85) !important; border-color: var(--site-dm-border-soft) !important; }
+
+/* Containers */
+html.dark .bg-white { background-color: var(--site-dm-surface) !important; }
+html.dark .bg-white\/95 { background-color: rgba(15, 23, 42, 0.95) !important; }
+html.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.12) !important; }
+html.dark .hover\:bg-emerald-50\/50:hover { background-color: rgba(16, 185, 129, 0.10) !important; }
+
+/* Text */
+html.dark .text-gray-900 { color: #f3f4f6 !important; }
+html.dark .text-gray-700 { color: var(--site-dm-text) !important; }
+html.dark .text-gray-600 { color: #d1d5db !important; }
+html.dark .text-gray-500 { color: var(--site-dm-text-muted) !important; }
+html.dark .text-gray-400 { color: #94a3b8 !important; }
+html.dark .text-emerald-600 { color: var(--site-dm-accent) !important; }
+
+/* Borders */
+html.dark .border-gray-200 { border-color: var(--site-dm-border-soft) !important; }
+html.dark .border-gray-200\/50 { border-color: rgba(51, 65, 85, 0.5) !important; }
+html.dark .border-gray-100 { border-color: var(--site-dm-border) !important; }
+
+/* Mobile menu */
+html.dark .mobile-menu { background-color: rgba(15, 23, 42, 0.98); border-bottom-color: var(--site-dm-border); }
+html.dark .mobile-nav-link { color: var(--site-dm-text); }
+html.dark .mobile-nav-link:hover { background-color: rgba(16, 185, 129, 0.10); color: var(--site-dm-accent); }
